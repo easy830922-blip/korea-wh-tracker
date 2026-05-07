@@ -1,4 +1,4 @@
-:root {
+:root, [data-theme="light"] {
   --color-text-primary: #1a1a1a;
   --color-text-secondary: #6b6b6b;
   --color-text-tertiary: #999;
@@ -12,20 +12,18 @@
   --color-border-tertiary: rgba(0,0,0,0.08);
 }
 
-@media (prefers-color-scheme: dark) {
-  :root {
-    --color-text-primary: #e8e6df;
-    --color-text-secondary: #a09e96;
-    --color-text-tertiary: #6e6d68;
-    --color-text-danger: #fca5a5;
-    --color-text-info: #93c5fd;
-    --color-background-primary: #1e1e1c;
-    --color-background-secondary: #2a2a27;
-    --color-background-tertiary: #171715;
-    --color-border-primary: rgba(255,255,255,0.3);
-    --color-border-secondary: rgba(255,255,255,0.15);
-    --color-border-tertiary: rgba(255,255,255,0.07);
-  }
+[data-theme="dark"] {
+  --color-text-primary: #e8e6df;
+  --color-text-secondary: #a09e96;
+  --color-text-tertiary: #6e6d68;
+  --color-text-danger: #fca5a5;
+  --color-text-info: #93c5fd;
+  --color-background-primary: #1e1e1c;
+  --color-background-secondary: #2a2a27;
+  --color-background-tertiary: #171715;
+  --color-border-primary: rgba(255,255,255,0.3);
+  --color-border-secondary: rgba(255,255,255,0.15);
+  --color-border-tertiary: rgba(255,255,255,0.07);
 }
 
 *, *::before, *::after {
