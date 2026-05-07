@@ -365,21 +365,98 @@ function TaskCard({t,toggle,handleUpload,uploading}){
 }
 
 /* ===== INFO ===== */
+const TIPS = [
+  {
+    title: "打工渡假計畫書撰寫技巧",
+    tips: [
+      { q: "用什麼語言寫？", a: "中、英、韓文皆可，但建議直接用英文寫。因為入境韓國後 90 天內申請外國人登錄證時，也需要繳交英文版計畫書，一次到位比較省事。" },
+      { q: "要寫多長？", a: "約 1 頁 A4 即可（Word 格式），不需要太長。重點是結構清楚、內容合理。務必使用代表部官網附件提供的格式，列印後親筆簽名。" },
+      { q: "計畫書的三大架構", a: "Motivation（動機）：為什麼想去韓國？可以從文化興趣、語言學習、個人成長切入。Objective（目標）：希望在韓國達成什麼？例如提升韓語能力、體驗在地生活、拓展國際視野。Plan in Chronological Order（時間規劃）：按月份列出預計行程，建議用文字搭配表格呈現。" },
+      { q: "內容重點與地雷", a: "以「觀光度假」為主、「打工」為輔——這是打工度假簽證的核心精神。多著墨旅遊計畫、文化體驗、語言學習，打工部分提及「為籌措旅費而從事兼職工作」即可，不要寫成求職計畫書。避免提到教英文、專業工作等禁止項目。" },
+      { q: "加分技巧", a: "列出過去韓國或海外旅遊紀錄，展現你對韓國文化的了解與熱情。時間規劃可以具體寫出想去的城市和景點（例如：首爾、釜山、濟州島），顯示你有做過功課。可以善用 ChatGPT 協助發想大綱和潤稿，但最終內容要像自己寫的。" },
+    ]
+  },
+  {
+    title: "簽證申請書填寫指南",
+    tips: [
+      { q: "用什麼語言填？", a: "建議用英文或韓文填寫。中文也可以，但英文最通用。" },
+      { q: "重要欄位怎麼填？", a: "護照種類：OR（一般）。發照地點：TAIWAN。入境目的：Working Holiday。預定停留期間：1 year。入境預定日期：填你預計出發的日期。停留費用支付者：Myself。" },
+      { q: "照片規格", a: "3.5 x 4.5cm 白底彩色照片，最近 6 個月內拍攝，貼在申請書指定位置。建議多印幾張備用。" },
+      { q: "韓國地址和電話", a: "如果還沒確定住處，韓國停留地址可以填 local hotel 或暫時空白。韓國電話號碼還沒辦也可以空白。這兩欄不是必填。" },
+      { q: "同伴家族 / 韓國保證人", a: "這兩欄可以免填，空白即可。" },
+      { q: "簽名注意", a: "申請書和計畫書都必須印出後用黑筆親筆簽名，不接受電子簽名。所有簽名均須手寫親簽，但文件內容可以塗改。" },
+    ]
+  },
+  {
+    title: "繳件當天注意事項",
+    tips: [
+      { q: "繳件流程", a: "抽號碼牌等叫號，把資料從資料夾取出，按照官方要求的順序排列好整疊交給櫃台人員。他們會當場檢查文件是否完整，身分證正本和畢業證書正本核對後當場歸還，護照正本會留在代表部，取件時領回。" },
+      { q: "要多久？", a: "繳件過程非常快，大約 5 分鐘。建議一早 08:30 就到，人比較少。" },
+      { q: "怎麼去？", a: "捷運紅線「台北 101 / 世貿站」1 號出口，第一個路口右轉步行約 2 分鐘即到國貿大樓，搭電梯到 15 樓 1506 室。" },
+      { q: "繳件後呢？", a: "會拿到一張收據，上面有取件日期（約 10 個工作天後）。櫃台有 QR Code 可以掃描查詢簽證審查進度，通常取件前幾天網頁就會顯示通過。" },
+      { q: "保險省錢技巧", a: "如果實際出發日還不確定，可以先投保最便宜的方案取得證明來申請簽證，等簽證通過後退保，再於出發前重新投保正確日期的保單。有成功退到全額的案例。保險關鍵字「海外 / overseas / global」一定要有。" },
+    ]
+  },
+];
+
+function TipCard({ section }) {
+  const [openIdx, setOpenIdx] = useState(null);
+  const toggle = (i) => setOpenIdx(prev => prev === i ? null : i);
+  return (
+    <div style={{marginTop:24}}>
+      <h3 style={{fontSize:13,fontWeight:600,color:"var(--color-text-primary)",marginBottom:10}}>{section.title}</h3>
+      <div style={S.infoTable}>
+        {section.tips.map((tip, i) => (
+          <div key={i} style={{borderBottom: i < section.tips.length - 1 ? "1px solid var(--color-border-tertiary)" : "none"}}>
+            <div onClick={() => toggle(i)} style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"12px 14px",cursor:"pointer",gap:12}}>
+              <span style={{fontSize:12,fontWeight:500,color:"var(--color-text-primary)"}}>{tip.q}</span>
+              <span style={{fontSize:14,color:"var(--color-text-tertiary)",flexShrink:0,transition:"transform .2s",transform:openIdx===i?"rotate(180deg)":"none"}}>▾</span>
+            </div>
+            {openIdx === i && (
+              <div style={{padding:"0 14px 14px",fontSize:12,color:"var(--color-text-secondary)",lineHeight:1.8}}>
+                {tip.a}
+              </div>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 function Info(){
   const[q,setQ]=useState("");
+  const[tab,setTab]=useState("info");
   const filtered=INFO_SECTIONS.map(sec=>({...sec,items:sec.items.filter(([k,v])=>!q.trim()||k.toLowerCase().includes(q.toLowerCase())||v.toLowerCase().includes(q.toLowerCase()))})).filter(sec=>sec.items.length>0);
+  const filteredTips=TIPS.filter(sec=>!q.trim()||sec.title.toLowerCase().includes(q.toLowerCase())||sec.tips.some(t=>t.q.toLowerCase().includes(q.toLowerCase())||t.a.toLowerCase().includes(q.toLowerCase())));
+
   return(<div className="fade-in">
     <h1 style={S.pageTitle}>Reference</h1>
     <p style={{fontSize:12,color:"var(--color-text-tertiary)",marginBottom:16}}>2026 韓國打工渡假簽證申請須知 — 快速查閱</p>
-    <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search info..." style={S.searchInput}/>
-    {filtered.map((sec,i)=>(<div key={i} style={{marginTop:24}}>
-      <h3 style={{fontSize:13,fontWeight:600,color:"var(--color-text-primary)",marginBottom:10}}>{sec.title}</h3>
-      <div style={S.infoTable}>{sec.items.map(([k,v],j)=>(<div key={j} style={{display:"flex",padding:"10px 14px",borderBottom:j<sec.items.length-1?"1px solid var(--color-border-tertiary)":"none",gap:12}}>
-        <span style={{fontSize:12,fontWeight:500,color:"var(--color-text-secondary)",width:90,flexShrink:0}}>{k}</span>
-        <span style={{fontSize:12,color:"var(--color-text-primary)",lineHeight:1.6}}>{v}</span>
-      </div>))}</div>
-    </div>))}
-    {filtered.length===0&&<div style={{textAlign:"center",padding:40,color:"var(--color-text-tertiary)",fontSize:13}}>No results</div>}
+
+    <div style={{display:"flex",gap:6,marginBottom:4}}>
+      {[["info","申請資訊"],["tips","撰寫技巧"]].map(([id,lb])=>(
+        <button key={id} onClick={()=>setTab(id)} style={{...S.pill,background:tab===id?"var(--color-text-primary)":"transparent",color:tab===id?"var(--color-background-primary)":"var(--color-text-secondary)",borderColor:tab===id?"var(--color-text-primary)":"var(--color-border-tertiary)"}}>{lb}</button>
+      ))}
+    </div>
+
+    <input type="text" value={q} onChange={e=>setQ(e.target.value)} placeholder="Search..." style={S.searchInput}/>
+
+    {tab==="info"&&<>
+      {filtered.map((sec,i)=>(<div key={i} style={{marginTop:24}}>
+        <h3 style={{fontSize:13,fontWeight:600,color:"var(--color-text-primary)",marginBottom:10}}>{sec.title}</h3>
+        <div style={S.infoTable}>{sec.items.map(([k,v],j)=>(<div key={j} style={{display:"flex",padding:"10px 14px",borderBottom:j<sec.items.length-1?"1px solid var(--color-border-tertiary)":"none",gap:12}}>
+          <span style={{fontSize:12,fontWeight:500,color:"var(--color-text-secondary)",width:90,flexShrink:0}}>{k}</span>
+          <span style={{fontSize:12,color:"var(--color-text-primary)",lineHeight:1.6}}>{v}</span>
+        </div>))}</div>
+      </div>))}
+      {filtered.length===0&&<div style={{textAlign:"center",padding:40,color:"var(--color-text-tertiary)",fontSize:13}}>No results</div>}
+    </>}
+
+    {tab==="tips"&&<>
+      {filteredTips.map((sec,i)=><TipCard key={i} section={sec}/>)}
+      {filteredTips.length===0&&<div style={{textAlign:"center",padding:40,color:"var(--color-text-tertiary)",fontSize:13}}>No results</div>}
+    </>}
   </div>);
 }
 
