@@ -120,6 +120,16 @@ export default function App() {
   const [uploadCtx, setUploadCtx] = useState(null);
   const [toast, setToast] = useState(null);
   const [uploading, setUploading] = useState(false);
+  const [theme, setTheme] = useState(() => {
+    try { return localStorage.getItem("eh_theme") || "light"; } catch { return "light"; }
+  });
+
+  useEffect(() => {
+    document.documentElement.setAttribute("data-theme", theme);
+    try { localStorage.setItem("eh_theme", theme); } catch {}
+  }, [theme]);
+
+  const toggleTheme = () => setTheme(prev => prev === "light" ? "dark" : "light");
 
   useEffect(() => { save({ tasks: tasks.map(t => ({ id:t.id, erinDone:t.erinDone, henryDone:t.henryDone, erinFile:t.erinFile, henryFile:t.henryFile, erinDriveLink:t.erinDriveLink, henryDriveLink:t.henryDriveLink })) }); }, [tasks]);
 
@@ -197,7 +207,10 @@ export default function App() {
         <div style={S.navLinks}>{[["dashboard","Dashboard"],["tasks","Tasks"],["info","Info"]].map(([id,lb])=>(
           <button key={id} onClick={()=>setView(id)} style={{...S.navBtn,color:view===id?"#C96B5B":"var(--color-text-secondary)",borderBottom:view===id?"2px solid #C96B5B":"2px solid transparent",fontWeight:view===id?600:400}}>{lb}</button>
         ))}</div>
-        <a href={DRIVE_URL} target="_blank" rel="noopener" style={S.driveBtn}>Google Drive</a>
+        <div style={{display:"flex",alignItems:"center",gap:8}}>
+          <button onClick={toggleTheme} style={S.themeBtn} title={theme==="light"?"Switch to dark mode":"Switch to light mode"}>{theme==="light"?"☽":"☀"}</button>
+          <a href={DRIVE_URL} target="_blank" rel="noopener" style={S.driveBtn}>Google Drive</a>
+        </div>
       </div></nav>
 
       <main style={S.main}>
@@ -379,6 +392,7 @@ const S={
   navLinks:{display:"flex",gap:0},
   navBtn:{background:"none",border:"none",padding:"16px 14px",fontSize:13,cursor:"pointer",fontFamily:"inherit",transition:"color .2s"},
   driveBtn:{fontSize:11,fontWeight:500,padding:"6px 14px",borderRadius:6,border:"1px solid var(--color-border-tertiary)",color:"var(--color-text-secondary)",textDecoration:"none",whiteSpace:"nowrap"},
+  themeBtn:{width:32,height:32,borderRadius:8,border:"1px solid var(--color-border-tertiary)",background:"var(--color-background-secondary)",color:"var(--color-text-secondary)",fontSize:14,cursor:"pointer",display:"flex",alignItems:"center",justifyContent:"center",fontFamily:"inherit",transition:"all .2s"},
   main:{padding:"24px 20px 40px"},
   footer:{textAlign:"center",padding:"20px",display:"flex",flexDirection:"column",alignItems:"center",gap:8},
   resetBtn:{fontSize:11,color:"var(--color-text-tertiary)",background:"none",border:"1px solid var(--color-border-tertiary)",padding:"5px 14px",borderRadius:6,cursor:"pointer",fontFamily:"inherit"},
