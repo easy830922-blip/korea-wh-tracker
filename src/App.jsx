@@ -6,6 +6,7 @@ const DRIVE_URL = "https://drive.google.com/drive/folders/" + FOLDER_ID;
 const CLIENT_ID = "727865116903-3f05472e4i39hq12d6a42t2voohubros.apps.googleusercontent.com";
 const SCOPES = "https://www.googleapis.com/auth/drive.file";
 const SK = "eh_wh_tracker_v8";
+const ALLOWED_EMAILS = ["easy830922@gmail.com", "alaba.havai@gmail.com"];
 
 const P = { erin: { name: "Erin", accent: "#C96B5B" }, henry: { name: "Henry", accent: "#5B8FB9" } };
 
@@ -101,8 +102,116 @@ function save(d) { try { localStorage.setItem(SK, JSON.stringify(d)); } catch {}
 function daysLeft(d) { const now = new Date(); now.setHours(0,0,0,0); const t = new Date(d); t.setHours(0,0,0,0); return Math.ceil((t - now) / 86400000); }
 function fmt(d) { const t = new Date(d); return (t.getMonth()+1) + "/" + t.getDate(); }
 
+/* ===== AUTH GATE ===== */
+function AuthGate({ children }) {
+  const [user, setUser] = useState(null);
+  const [error, setError] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [gisReady, setGisReady] = useState(false);
+
+  useEffect(() => {
+    // Load Google Identity Services
+    const script = document.createElement("script");
+    script.src = "https://accounts.google.com/gsi/client";
+    script.onload = () => setGisReady(true);
+    document.head.appendChild(script);
+
+    // Check if we have a cached session
+    try {
+      const cached = JSON.parse(sessionStorage.getItem("eh_user"));
+      if (cached?.email && ALLOWED_EMAILS.includes(cached.email)) {
+        setUser(cached);
+      }
+    } catch {}
+    setLoading(false);
+  }, []);
+
+  const handleLogin = useCallback(() => {
+    if (!gisReady) return;
+    setError("");
+    const client = window.google.accounts.oauth2.initTokenClient({
+      client_id: CLIENT_ID,
+      scope: "email profile " + SCOPES,
+      callback: async (resp) => {
+        if (resp.error) {
+          setError("Login cancelled");
+          return;
+        }
+        _accessToken = resp.access_token;
+        setTimeout(() => { _accessToken = null; }, (resp.expires_in - 60) * 1000);
+        // Fetch user info
+        try {
+          const res = await fetch("https://www.googleapis.com/oauth2/v2/userinfo", {
+            headers: { Authorization: "Bearer " + resp.access_token },
+          });
+          const info = await res.json();
+          if (ALLOWED_EMAILS.includes(info.email)) {
+            const u = { name: info.name, email: info.email, picture: info.picture };
+            setUser(u);
+            sessionStorage.setItem("eh_user", JSON.stringify(u));
+            setError("");
+          } else {
+            setUser(null);
+            setError("This Google account is not authorized.");
+            // Revoke the token
+            window.google.accounts.oauth2.revoke(resp.access_token);
+          }
+        } catch {
+          setError("Failed to verify account. Please try again.");
+        }
+      },
+    });
+    client.requestAccessToken({ prompt: "select_account" });
+  }, [gisReady]);
+
+  const handleLogout = () => {
+    setUser(null);
+    _accessToken = null;
+    sessionStorage.removeItem("eh_user");
+  };
+
+  if (loading) return null;
+
+  if (!user) {
+    return (
+      <div style={{fontFamily:"'DM Sans',sans-serif",minHeight:"100vh",display:"flex",alignItems:"center",justifyContent:"center",background:"var(--color-background-tertiary)",padding:20}}>
+        <div style={{textAlign:"center",maxWidth:360}}>
+          <div style={{fontFamily:"'Fraunces',serif",fontSize:32,fontWeight:700,color:"var(--color-text-primary)",marginBottom:4}}>
+            E <span style={{color:"var(--color-text-tertiary)"}}>&</span> H
+          </div>
+          <div style={{fontSize:13,color:"var(--color-text-tertiary)",marginBottom:32}}>
+            2026 Korea Working Holiday Tracker
+          </div>
+          <div style={{background:"var(--color-background-primary)",borderRadius:12,border:"1px solid var(--color-border-tertiary)",padding:"32px 28px"}}>
+            <div style={{fontSize:14,fontWeight:600,color:"var(--color-text-primary)",marginBottom:8}}>Sign in to continue</div>
+            <div style={{fontSize:12,color:"var(--color-text-tertiary)",marginBottom:24,lineHeight:1.6}}>
+              Only authorized accounts can access this tracker.
+            </div>
+            <button onClick={handleLogin} disabled={!gisReady} style={{
+              width:"100%",padding:"12px 20px",borderRadius:8,border:"1px solid var(--color-border-tertiary)",
+              background:"var(--color-background-primary)",color:"var(--color-text-primary)",
+              fontSize:13,fontWeight:500,cursor:gisReady?"pointer":"not-allowed",fontFamily:"inherit",
+              display:"flex",alignItems:"center",justifyContent:"center",gap:10,
+              opacity:gisReady?1:0.5,transition:"box-shadow .2s",
+            }}>
+              <svg width="18" height="18" viewBox="0 0 48 48"><path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z"/><path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z"/><path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z"/><path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z"/></svg>
+              Sign in with Google
+            </button>
+            {error&&<div style={{marginTop:12,fontSize:12,color:"#C0453A",fontWeight:500}}>{error}</div>}
+          </div>
+          <div style={{fontSize:10,color:"var(--color-text-tertiary)",marginTop:16}}>
+            Access restricted to authorized members only.
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return children({ user, handleLogout });
+}
+
 /* ===== MAIN APP ===== */
-export default function App() {
+function Tracker({ user, handleLogout }) {
   const saved = load();
   const [view, setView] = useState("dashboard");
   const [tasks, setTasks] = useState(() => {
@@ -208,6 +317,10 @@ export default function App() {
           <button key={id} onClick={()=>setView(id)} style={{...S.navBtn,color:view===id?"#C96B5B":"var(--color-text-secondary)",borderBottom:view===id?"2px solid #C96B5B":"2px solid transparent",fontWeight:view===id?600:400}}>{lb}</button>
         ))}</div>
         <div style={{display:"flex",alignItems:"center",gap:8}}>
+          {user&&<div style={{display:"flex",alignItems:"center",gap:6}}>
+            {user.picture&&<img src={user.picture} style={{width:24,height:24,borderRadius:99}} referrerPolicy="no-referrer"/>}
+            <button onClick={handleLogout} style={{fontSize:10,color:"var(--color-text-tertiary)",background:"none",border:"none",cursor:"pointer",fontFamily:"inherit",textDecoration:"underline"}}>Sign out</button>
+          </div>}
           <button onClick={toggleTheme} style={S.themeBtn} title={theme==="light"?"Switch to dark mode":"Switch to light mode"}>{theme==="light"?"☽":"☀"}</button>
           <a href={DRIVE_URL} target="_blank" rel="noopener" style={S.driveBtn}>Google Drive</a>
         </div>
@@ -380,11 +493,11 @@ const TIPS = [
     title: "簽證申請書填寫指南",
     tips: [
       { q: "用什麼語言填？", a: "建議用英文或韓文填寫。中文也可以，但英文最通用。" },
-      { q: "重要欄位怎麼填？", a: "護照種類：OR（一般）。發照地點：TAIWAN。入境目的：Working Holiday。預定停留期間：1 year。入境預定日期：填你預計出發的日期。停留費用支付者：Myself。" },
-      { q: "照片規格", a: "3.5 x 4.5cm 白底彩色照片，最近 6 個月內拍攝，貼在申請書指定位置。建議多印幾張備用。" },
+      { q: "重要欄位怎麼填？", a: "護照種類：OR（一般）。發照地點：TAIWAN。入境目的：Working Holiday。預定停留期間：1 year。入境預定日期：填你預計出發的日期。停留費用支付者：Myself。近五年訪韓紀錄如果填不下，寫個大概即可。" },
+      { q: "照片規格", a: "3.5 x 4.5cm 白底彩色照片（兩吋大小，與身分證、護照相同），最近 6 個月內拍攝，貼在申請書指定位置。建議多印幾張備用。" },
       { q: "韓國地址和電話", a: "如果還沒確定住處，韓國停留地址可以填 local hotel 或暫時空白。韓國電話號碼還沒辦也可以空白。這兩欄不是必填。" },
-      { q: "同伴家族 / 韓國保證人", a: "這兩欄可以免填，空白即可。" },
-      { q: "簽名注意", a: "申請書和計畫書都必須印出後用黑筆親筆簽名，不接受電子簽名。所有簽名均須手寫親簽，但文件內容可以塗改。" },
+      { q: "同伴家族 / 韓國保證人", a: "這兩欄可以免填，空白即可。下方韓文表格也不需填寫。" },
+      { q: "簽名注意", a: "申請書和計畫書都必須印出後用藍筆或黑筆親筆簽名，不接受電子簽名。文件內容可以塗改，但簽名處須手寫親簽。" },
     ]
   },
   {
@@ -394,9 +507,43 @@ const TIPS = [
       { q: "要多久？", a: "繳件過程非常快，大約 5 分鐘。建議一早 08:30 就到，人比較少。" },
       { q: "怎麼去？", a: "捷運紅線「台北 101 / 世貿站」1 號出口，第一個路口右轉步行約 2 分鐘即到國貿大樓，搭電梯到 15 樓 1506 室。" },
       { q: "繳件後呢？", a: "會拿到一張收據，上面有取件日期（約 10 個工作天後）。櫃台有 QR Code 可以掃描查詢簽證審查進度，通常取件前幾天網頁就會顯示通過。" },
-      { q: "保險省錢技巧", a: "如果實際出發日還不確定，可以先投保最便宜的方案取得證明來申請簽證，等簽證通過後退保，再於出發前重新投保正確日期的保單。有成功退到全額的案例。保險關鍵字「海外 / overseas / global」一定要有。" },
+      { q: "領取簽證", a: "從收據上的領取日開始，每天下午 2~4 點間都可以至代表部取回護照（也可把收據給友人代領）。目前都是電子簽證，護照上不會有資料，人員會請你現場到簽證網站確認沒問題再離開。" },
+      { q: "簽證查詢方式", a: "簽證查詢網站右上角可切換中文，申請種類選「駐外使領館」，輸入基本資料後會出現簽證類型（H1）、入境到期日等。可列印「電子簽證確認書」，憑確認書上的簽證號碼（Visa No.）就可以在出發前預約辦理外國人登錄證。" },
+      { q: "保險省錢技巧", a: "先投保最便宜的方案（如富邦新計畫 A，約 $5,569/年）取得證明送件。因為實際出發日可能還不能投保（最多似乎 2 個月內），所以保單起始日先選較近的日期。等簽證確定通過後退保，有人成功全額退款。出發前再重新投保正確日期即可。" },
     ]
   },
+];
+
+const DOC_GUIDE = [
+  { num: "1", title: "護照正本 + 身分證正本", detail: "護照效期需 12 個月以上。身分證正本與影本對照後當場歸還，護照正本需留在代表部，取簽證時才能領回。若申請期間有出國規劃請特別留意。", time: "", cost: "" },
+  { num: "2", title: "簽證申請書（貼彩色證件照）", detail: "代表部有提供申請書可下載，建議用英文填寫，藍筆或黑筆都可以。證件照為 3.5x4.5cm（兩吋），跟身分證、護照的照片大小相同。有表格會問近五年訪韓紀錄，填不下寫個大概即可。", time: "", cost: "" },
+  { num: "3", title: "護照及身分證影本各 1 份", detail: "影印護照有照片的那頁和身分證正反面。代表部現場也有影印機可用。", time: "", cost: "" },
+  { num: "4", title: "全戶戶籍謄本", detail: "帶身分證去戶政事務所即可申請。父母如果分屬不同戶籍地，要記得申請兩份。父母本人去幫忙申請也可以。", time: "平日辦當天領", cost: "$15/份" },
+  { num: "5", title: "存款餘額證明（USD $3,000+）", detail: "本人名義，台灣境內銀行或郵局開立。要留意至少提前一天把錢存進去。戶頭內是台幣也可以，可請行員直接換算成等值的美金。", time: "平日辦當天領", cost: "$50/份" },
+  { num: "6", title: "打工渡假行程及計畫書", detail: "建議寫英文或韓文（之後申請登錄證也需要）。大方向要包含申請動機、目的、時間規劃。時間規劃除文字外可列表格說明，約 1 頁 A4 Word，列印後務必簽名。", time: "", cost: "" },
+  { num: "7", title: "學歷證明 / 在學證明", detail: "學生附在學證明（正本）；已畢業用最高學歷證書（正本 + 影本）。建議準備英文版本，現場會對照正本後歸還。", time: "", cost: "" },
+  { num: "8", title: "無犯罪紀錄證明（良民證）", detail: "臨櫃或線上皆可，推薦線上辦理。在警政署網站申請，需完成 MyData 驗證身分，核發約 2.5 個工作天，申請後大約一週內收到掛號信。", time: "約 1 週", cost: "$100 + 郵資" },
+  { num: "9", title: "健康診斷書", detail: "須至衛福部指定健檢醫院。務必攜帶「2 吋照片 2 張 + 護照 + 健保卡」。不用抽血（不需空腹）、不用做糞便及漢生病檢查（台灣為免檢國家）。如果不確定是否有麻疹抗體，建議直接打疫苗比較保險——可在體檢當天先掛家醫科打 MMR 疫苗，帶黃卡證明去體檢即可。建議不要壓線抵達，以免早上時段結束要等到下午。只受理總結果合格的診斷書。", time: "7 個工作天", cost: "健檢 ~$940 + 麻疹疫苗 ~$547" },
+  { num: "10", title: "海外保險證明", detail: "投保期間至少 1 年（365 天）以上，保險內容需明載「海外、國外、韓國、global、overseas」等字樣。可找熟識保險員協助，國泰、富邦都有方案。省錢技巧：先投保最便宜的方案（如富邦新計畫 A，$5,569/年），簽證通過後退保，出發前再重新投保正確日期。", time: "電子保單約 1~2 週", cost: "依方案而定" },
+];
+
+const HOSPITALS = [
+  "馬偕紀念醫院",
+  "台北市立聯合醫院 — 陽明院區",
+  "台北市立聯合醫院 — 忠孝院區",
+  "台北市立聯合醫院 — 仁愛院區",
+  "台北市立聯合醫院 — 和平婦幼院區",
+  "台北市立聯合醫院 — 中興院區",
+  "基督復臨安息日會醫療財團法人臺安醫院",
+  "三軍總醫院松山分院附設民眾診療服務處",
+];
+
+const EXT_LINKS = [
+  { label: "外交部領事事務局（護照申辦）", url: "https://epass.boca.gov.tw/Default.html" },
+  { label: "駐台北韓國代表部（簽證公告）", url: "https://www.mofa.go.kr/tw-zh/brd/m_19839/view.do?seq=761351&page=1" },
+  { label: "衛福部指定健檢醫院列表", url: "https://www.cdc.gov.tw/Category/Page/nU7y97g0GqJbB3kn5B-nPg" },
+  { label: "警政署良民證線上申請", url: "https://eli.npa.gov.tw/E7WebO/index01.jsp" },
+  { label: "Google Drive 文件資料夾", url: DRIVE_URL },
 ];
 
 function TipCard({ section }) {
@@ -424,18 +571,39 @@ function TipCard({ section }) {
   );
 }
 
+function DocGuideCard({ doc }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div style={{borderBottom:"1px solid var(--color-border-tertiary)"}}>
+      <div onClick={()=>setOpen(!open)} style={{display:"flex",alignItems:"flex-start",gap:10,padding:"12px 14px",cursor:"pointer"}}>
+        <span style={{fontSize:11,fontWeight:700,color:"#C96B5B",width:22,flexShrink:0,marginTop:1}}>{doc.num}</span>
+        <div style={{flex:1,minWidth:0}}>
+          <span style={{fontSize:12,fontWeight:600,color:"var(--color-text-primary)"}}>{doc.title}</span>
+          {(doc.time||doc.cost)&&<div style={{fontSize:11,color:"var(--color-text-tertiary)",marginTop:2,display:"flex",gap:12}}>
+            {doc.time&&<span>{doc.time}</span>}
+            {doc.cost&&<span>{doc.cost}</span>}
+          </div>}
+        </div>
+        <span style={{fontSize:14,color:"var(--color-text-tertiary)",flexShrink:0,transition:"transform .2s",transform:open?"rotate(180deg)":"none"}}>▾</span>
+      </div>
+      {open&&<div style={{padding:"0 14px 14px 46px",fontSize:12,color:"var(--color-text-secondary)",lineHeight:1.8}}>{doc.detail}</div>}
+    </div>
+  );
+}
+
 function Info(){
   const[q,setQ]=useState("");
   const[tab,setTab]=useState("info");
   const filtered=INFO_SECTIONS.map(sec=>({...sec,items:sec.items.filter(([k,v])=>!q.trim()||k.toLowerCase().includes(q.toLowerCase())||v.toLowerCase().includes(q.toLowerCase()))})).filter(sec=>sec.items.length>0);
   const filteredTips=TIPS.filter(sec=>!q.trim()||sec.title.toLowerCase().includes(q.toLowerCase())||sec.tips.some(t=>t.q.toLowerCase().includes(q.toLowerCase())||t.a.toLowerCase().includes(q.toLowerCase())));
+  const filteredDocs=DOC_GUIDE.filter(d=>!q.trim()||d.title.toLowerCase().includes(q.toLowerCase())||d.detail.toLowerCase().includes(q.toLowerCase()));
 
   return(<div className="fade-in">
     <h1 style={S.pageTitle}>Reference</h1>
     <p style={{fontSize:12,color:"var(--color-text-tertiary)",marginBottom:16}}>2026 韓國打工渡假簽證申請須知 — 快速查閱</p>
 
-    <div style={{display:"flex",gap:6,marginBottom:4}}>
-      {[["info","申請資訊"],["tips","撰寫技巧"]].map(([id,lb])=>(
+    <div style={{display:"flex",gap:6,marginBottom:4,flexWrap:"wrap"}}>
+      {[["info","申請資訊"],["docs","文件攻略"],["tips","撰寫技巧"],["hospitals","指定醫院"],["links","外部連結"]].map(([id,lb])=>(
         <button key={id} onClick={()=>setTab(id)} style={{...S.pill,background:tab===id?"var(--color-text-primary)":"transparent",color:tab===id?"var(--color-background-primary)":"var(--color-text-secondary)",borderColor:tab===id?"var(--color-text-primary)":"var(--color-border-tertiary)"}}>{lb}</button>
       ))}
     </div>
@@ -453,10 +621,48 @@ function Info(){
       {filtered.length===0&&<div style={{textAlign:"center",padding:40,color:"var(--color-text-tertiary)",fontSize:13}}>No results</div>}
     </>}
 
+    {tab==="docs"&&<>
+      <div style={{marginTop:24}}>
+        <h3 style={{fontSize:13,fontWeight:600,color:"var(--color-text-primary)",marginBottom:10}}>10 項文件準備攻略</h3>
+        <p style={{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:10,lineHeight:1.6}}>點擊每項文件查看詳細準備方式、所需時間與費用。所有文件須為繳件日前 3 個月內開立之正本。</p>
+        <div style={S.infoTable}>
+          {filteredDocs.map((d,i)=><DocGuideCard key={i} doc={d}/>)}
+        </div>
+      </div>
+      {filteredDocs.length===0&&<div style={{textAlign:"center",padding:40,color:"var(--color-text-tertiary)",fontSize:13}}>No results</div>}
+    </>}
+
     {tab==="tips"&&<>
       {filteredTips.map((sec,i)=><TipCard key={i} section={sec}/>)}
       {filteredTips.length===0&&<div style={{textAlign:"center",padding:40,color:"var(--color-text-tertiary)",fontSize:13}}>No results</div>}
     </>}
+
+    {tab==="hospitals"&&<div style={{marginTop:24}}>
+      <h3 style={{fontSize:13,fontWeight:600,color:"var(--color-text-primary)",marginBottom:10}}>衛福部指定健檢醫院（台北地區）</h3>
+      <p style={{fontSize:11,color:"var(--color-text-tertiary)",marginBottom:10,lineHeight:1.6}}>以下醫院可開立韓國打工度假所需的健康診斷書。建議攜帶 2 吋照片 2 張、護照、健保卡前往。</p>
+      <div style={S.infoTable}>
+        {HOSPITALS.map((h,i)=>(
+          <div key={i} style={{padding:"11px 14px",borderBottom:i<HOSPITALS.length-1?"1px solid var(--color-border-tertiary)":"none",fontSize:12,color:"var(--color-text-primary)"}}>
+            {h}
+          </div>
+        ))}
+      </div>
+      <a href="https://www.cdc.gov.tw/Category/Page/nU7y97g0GqJbB3kn5B-nPg" target="_blank" rel="noopener" style={{display:"inline-block",marginTop:12,fontSize:11,fontWeight:500,padding:"8px 16px",borderRadius:6,border:"1px solid var(--color-border-tertiary)",color:"var(--color-text-secondary)",textDecoration:"none"}}>
+        查看完整醫院列表 (CDC)  →
+      </a>
+    </div>}
+
+    {tab==="links"&&<div style={{marginTop:24}}>
+      <h3 style={{fontSize:13,fontWeight:600,color:"var(--color-text-primary)",marginBottom:10}}>常用連結</h3>
+      <div style={{display:"flex",flexDirection:"column",gap:8}}>
+        {EXT_LINKS.map((lk,i)=>(
+          <a key={i} href={lk.url} target="_blank" rel="noopener" style={{display:"flex",alignItems:"center",justifyContent:"space-between",padding:"14px 16px",borderRadius:8,border:"1px solid var(--color-border-tertiary)",background:"var(--color-background-primary)",textDecoration:"none",fontSize:12,fontWeight:500,color:"var(--color-text-primary)",transition:"box-shadow .2s"}}>
+            <span>{lk.label}</span>
+            <span style={{color:"var(--color-text-tertiary)",fontSize:14}}>→</span>
+          </a>
+        ))}
+      </div>
+    </div>}
   </div>);
 }
 
@@ -500,3 +706,8 @@ const S={
   uploadBtn:{fontSize:11,fontWeight:500,padding:"5px 12px",borderRadius:6,border:"1px solid var(--color-border-tertiary)",background:"var(--color-background-secondary)",color:"var(--color-text-secondary)",cursor:"pointer",fontFamily:"inherit",whiteSpace:"nowrap"},
   infoTable:{background:"var(--color-background-primary)",border:"1px solid var(--color-border-tertiary)",borderRadius:8,overflow:"hidden"},
 };
+
+/* ===== EXPORT WITH AUTH ===== */
+export default function App() {
+  return <AuthGate>{({ user, handleLogout }) => <Tracker user={user} handleLogout={handleLogout} />}</AuthGate>;
+}
